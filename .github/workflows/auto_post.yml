@@ -39,7 +39,7 @@ jobs:
               exit()
 
           frame = frames[0]
-          url = f"https://raw.githubusercontent.com/${{ github.repository }}/main/{frame}"
+          url = f"https://raw.githubusercontent.com/{os.getenv('GITHUB_REPOSITORY')}/main/{frame}"
           caption = f"Auto-posted frame: {os.path.basename(frame)}"
 
           print(f"Posting {url}")
