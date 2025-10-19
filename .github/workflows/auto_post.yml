@@ -2,16 +2,18 @@ name: Auto Post Frames
 
 on:
   schedule:
-    # Runs every 5 minutes
-    - cron: "*/5 * * * *"
+    - cron: "*/5 * * * *"  # runs every 5 minutes
   workflow_dispatch:
 
 jobs:
   post_frames:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -39,12 +41,21 @@ jobs:
               print("No images found in frames folder.")
               raise SystemExit(0)
 
-          frame = frames[0]
-          url = f"https://raw.githubusercontent.com/{repo}/main/{frame}"
+          # --- Remember last frame index ---
+          last_frame_file = "last_frame.txt"
+          if os.path.exists(last_frame_file):
+              with open(last_frame_file, "r") as f:
+                  last_index = int(f.read().strip() or "0")
+          else:
+              last_index = 0
 
-          # --- AUTO-INCREMENTING CAPTION LOGIC ---
+          next_index = (last_index + 1) % len(frames)
+          frame = frames[next_index]
+          with open(last_frame_file, "w") as f:
+              f.write(str(next_index))
+
+          # --- Remember caption counter ---
           counter_file = "counter.txt"
-
           if os.path.exists(counter_file):
               with open(counter_file, "r") as f:
                   last_number = int(f.read().strip() or "0")
@@ -52,19 +63,25 @@ jobs:
               last_number = 0
 
           new_number = last_number + 1
-
-          # Save counter (this keeps it in the workflow's workspace)
           with open(counter_file, "w") as f:
               f.write(str(new_number))
 
           caption = f"Test frame {new_number:04d}"
+          url = f"https://raw.githubusercontent.com/{repo}/main/{frame}"
+
           print(f"Posting {url} with caption: {caption}")
 
-          # --- POST TO FACEBOOK ---
-          response = requests.post(
+          r = requests.post(
               f"https://graph.facebook.com/v24.0/{page_id}/photos",
               data={"url": url, "caption": caption, "access_token": token}
           )
-
-          print("Response:", response.status_code, response.text)
+          print("Response:", r.status_code, r.text)
           PYCODE
+
+      - name: Commit updated counters
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add last_frame.txt counter.txt
+          git commit -m "Update counters [skip ci]" || echo "No changes to commit"
+          git push
