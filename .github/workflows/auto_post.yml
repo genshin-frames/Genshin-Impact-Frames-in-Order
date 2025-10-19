@@ -45,27 +45,6 @@ jobs:
           print(f"Posting {url}")
           # --- AUTO-INCREMENTING CAPTION LOGIC ---
 
-counter_file = "counter.txt"
-
-# 1. Read the last number
-if os.path.exists(counter_file):
-    with open(counter_file, "r") as f:
-        last_number = int(f.read().strip())
-else:
-    last_number = 0
-
-# 2. Increment by 1
-new_number = last_number + 1
-
-# 3. Write it back
-with open(counter_file, "w") as f:
-    f.write(str(new_number))
-
-# 4. Make the caption
-caption = f"Test post {new_number:04d}"
-
-# --- END OF LOGIC ---
-
           r = requests.post(
               f"https://graph.facebook.com/v24.0/{page_id}/photos",
               data={"url": url, "caption": caption, "access_token": token}
