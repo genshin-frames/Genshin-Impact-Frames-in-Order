@@ -1,0 +1,51 @@
+name: Auto Post Frames
+
+on:
+  schedule:
+    # Runs every 5 minutes
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  post_frames:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run posting script
+        env:
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          PAGE_ACCESS_TOKEN: ${{ secrets.PAGE_ACCESS_TOKEN }}
+        run: |
+          python <<EOF
+          import requests, os, glob
+
+          page_id = os.getenv("PAGE_ID")
+          token = os.getenv("PAGE_ACCESS_TOKEN")
+
+          frames = sorted(glob.glob("frames/*.jpg") + glob.glob("frames/*.png"))
+
+          if not frames:
+              print("No images found in frames folder.")
+              exit()
+
+          frame = frames[0]
+          url = f"https://raw.githubusercontent.com/${{ github.repository }}/main/{frame}"
+          caption = f"Auto-posted frame: {os.path.basename(frame)}"
+
+          print(f"Posting {url}")
+          r = requests.post(
+              f"https://graph.facebook.com/v24.0/{page_id}/photos",
+              data={"url": url, "caption": caption, "access_token": token}
+          )
+          print("Response:", r.text)
+          EOF
