@@ -25,29 +25,46 @@ jobs:
         env:
           PAGE_ID: ${{ secrets.PAGE_ID }}
           PAGE_ACCESS_TOKEN: ${{ secrets.PAGE_ACCESS_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          python <<EOF
-          import requests, os, glob
+          python - <<'PYCODE'
+          import os, glob, requests
 
           page_id = os.getenv("PAGE_ID")
           token = os.getenv("PAGE_ACCESS_TOKEN")
+          repo = os.getenv("GITHUB_REPOSITORY")
 
           frames = sorted(glob.glob("frames/*.jpg") + glob.glob("frames/*.png"))
-
           if not frames:
               print("No images found in frames folder.")
-              exit()
+              raise SystemExit(0)
 
           frame = frames[0]
-          url = f"https://raw.githubusercontent.com/{os.getenv('GITHUB_REPOSITORY')}/main/{frame}"
-          caption = f"Auto-posted frame: {os.path.basename(frame)}"
+          url = f"https://raw.githubusercontent.com/{repo}/main/{frame}"
 
-          print(f"Posting {url}")
           # --- AUTO-INCREMENTING CAPTION LOGIC ---
+          counter_file = "counter.txt"
 
-          r = requests.post(
+          if os.path.exists(counter_file):
+              with open(counter_file, "r") as f:
+                  last_number = int(f.read().strip() or "0")
+          else:
+              last_number = 0
+
+          new_number = last_number + 1
+
+          # Save counter (this keeps it in the workflow's workspace)
+          with open(counter_file, "w") as f:
+              f.write(str(new_number))
+
+          caption = f"Test frame {new_number:04d}"
+          print(f"Posting {url} with caption: {caption}")
+
+          # --- POST TO FACEBOOK ---
+          response = requests.post(
               f"https://graph.facebook.com/v24.0/{page_id}/photos",
               data={"url": url, "caption": caption, "access_token": token}
           )
-          print("Response:", r.text)
-          EOF
+
+          print("Response:", response.status_code, response.text)
+          PYCODE
